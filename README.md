@@ -1,1 +1,0 @@
-# Explorador-Cultural
