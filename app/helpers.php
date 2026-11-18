@@ -18,12 +18,12 @@ function redirect(string $path): never
     exit;
 }
 
-function render(string $view = 'layouts/cadastro', array $data = []): void
+function render(string $view = 'cadastro', array $data = []): void
 {
     extract($data, EXTR_SKIP);
     $viewFile = __DIR__ . '/Views/' . $view . '.php';
     if (!is_file($viewFile)) {
-        $viewFile = __DIR__ . '/Views/layouts/cadastro.php';
+        $viewFile = __DIR__ . '/Views/cadastro.php';
     }
     require $viewFile;
 }

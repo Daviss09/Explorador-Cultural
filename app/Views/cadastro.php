@@ -3,6 +3,11 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+// Garante o carregamento dos helpers se a view for acessada diretamente
+if (!function_exists('url')) {
+    require_once __DIR__ . '/../helpers.php';
+}
+
 // Garante o carregamento dos modelos se a view for acessada diretamente
 if (!class_exists('App\Models\Database')) {
     $dbFile = __DIR__ . '/../Models/Database.php';
@@ -76,10 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro - Explorador Cultural</title>
+    <!-- Bootstrap 5.3.3 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-B/GM4XqrwHnWXNOWMbloTmrYXZg10cakYGmpfsR/bbzQ6JAJI4ihuyADKLnBgrCe" crossorigin="anonymous">
-<script type="module" src="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-1a/pXj49ZQ1aHEmrJ+gMw1otqoVsYwlEnlD8mIfY2TV03r20Y0CN7uqx1tQogjPL" crossorigin="anonymous"></script>
     <style>
         :root {
             --sb-primary: #4e73df;
@@ -123,20 +128,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
         <div class="col-md-6 col-lg-5">
             <div class="card">
                 <div class="card-header text-center py-3">
-                    <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Cadastro de Usuário</h5>
+                    <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Cadastrar-se</h5>
                 </div>
                 <div class="card-body p-4">
                     <?php if ($error): ?>
-                        <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i><?= htmlspecialchars($error) ?>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
 
                     <?php if ($success): ?>
-                        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i><?= htmlspecialchars($success) ?>
+                            <div class="mt-2">
+                                <a href="<?= url('user/login') ?>" class="btn btn-sm btn-success">
+                                    <i class="fas fa-sign-in-alt me-1"></i>Ir para o Login
+                                </a>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
                     <?php endif; ?>
 
                     <form method="POST">
                         <div class="mb-3">
-                            <label class="form-label">Nome de Usuário</label>
+                            <label class="form-label fw-semibold">Nome de Usuário</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-user"></i></span>
                                 <input type="text" class="form-control" name="username"
@@ -146,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Endereço (opcional)</label>
+                            <label class="form-label fw-semibold">Cidade (opcional)</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
                                 <input type="text" class="form-control" name="endereco"
@@ -156,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Senha</label>
+                            <label class="form-label fw-semibold">Senha</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-lock"></i></span>
                                 <input type="password" class="form-control" name="password"
@@ -165,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Confirmar Senha</label>
+                            <label class="form-label fw-semibold">Confirmar Senha</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-lock"></i></span>
                                 <input type="password" class="form-control" name="confirm_password"
@@ -173,16 +189,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $dbConectado) {
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 py-2">
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
                             <i class="fas fa-user-plus me-2"></i>Cadastrar
                         </button>
                     </form>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="mb-2 text-muted">Já tem uma conta? <a href="<?= url('user/login') ?>" class="fw-bold text-decoration-none text-primary">Faça login</a></p>
+                        <a href="<?= url() ?>" class="text-secondary small text-decoration-none">
+                            <i class="fas fa-arrow-left me-1"></i>Voltar para a Página Inicial
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Bootstrap 5.3.3 JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

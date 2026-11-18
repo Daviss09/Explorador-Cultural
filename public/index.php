@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 // 0) Caminho base
 if (!defined('BASE_URL')) {
-    $base = dirname(dirname($_SERVER['SCRIPT_NAME']));
+    $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
+    if (basename($scriptDir) === 'public') {
+        $base = dirname($scriptDir);
+    } else {
+        $base = $scriptDir;
+    }
     define('BASE_URL', rtrim(str_replace('\\', '/', $base), '/'));
 }
 
@@ -18,21 +23,37 @@ spl_autoload_register(function (string $class) {
 require_once __DIR__ . '/../app/helpers.php';
 
 // 2) Interpretação da URL
-$route = trim((string) ($_GET['url'] ?? ''), '/');
-if ($route === '') {
-    $route = 'user/index';
-}
-$url = explode('/', $route);
-$url[0] = preg_replace('/[^a-zA-Z0-9_]/', '', $url[0] ?? 'user');
-$url[1] = preg_replace('/[^a-zA-Z0-9_]/', '', $url[1] ?? 'index');
-$controller = 'App\\Controllers\\' . ucfirst($url[0]) . 'Controller';
-$method = $url[1] ?? 'index';
-$params = array_slice($url, 2);
+$rawRoute = trim((string) ($_GET['url'] ?? ''), '/');
+$rawRoute = preg_replace('/\.php$/i', '', $rawRoute);
 
-// 3) Validação e despacho (padrão é sempre a tela de cadastro)
+// Atalhos diretos de rota comuns
+$routeAliases = [
+    '' => ['UserController', 'index'],
+    'index' => ['UserController', 'index'],
+    'home' => ['UserController', 'index'],
+    'cadastro' => ['UserController', 'cadastro'],
+    'login' => ['UserController', 'login'],
+    'logout' => ['UserController', 'logout'],
+];
+
+if (isset($routeAliases[$rawRoute])) {
+    [$ctrlName, $method] = $routeAliases[$rawRoute];
+    $controller = 'App\\Controllers\\' . $ctrlName;
+    $params = [];
+} else {
+    $url = explode('/', $rawRoute);
+    $url[0] = preg_replace('/[^a-zA-Z0-9_]/', '', $url[0] ?? 'user');
+    $url[1] = preg_replace('/[^a-zA-Z0-9_]/', '', $url[1] ?? 'index');
+    $controller = 'App\\Controllers\\' . ucfirst($url[0]) . 'Controller';
+    $method = $url[1] ?? 'index';
+    $params = array_slice($url, 2);
+}
+
+// 3) Validação e despacho (padrão é sempre a tela inicial/index)
 if (!class_exists($controller) || !method_exists($controller, $method)) {
     $controller = 'App\\Controllers\\UserController';
     $method = 'index';
+    $params = [];
 }
 
 (new $controller())->$method(...$params);
