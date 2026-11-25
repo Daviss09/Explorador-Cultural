@@ -34,6 +34,9 @@ $routeAliases = [
     'cadastro' => ['UserController', 'cadastro'],
     'login' => ['UserController', 'login'],
     'logout' => ['UserController', 'logout'],
+    'pins' => ['PinController', 'handle'],
+    'pin/index' => ['PinController', 'index'],
+    'pin/store' => ['PinController', 'store'],
 ];
 
 if (isset($routeAliases[$rawRoute])) {

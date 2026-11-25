@@ -36,6 +36,31 @@ function csrf_token(): string
     return $_SESSION['_csrf'] ??= bin2hex(random_bytes(32));
 }
 
+/**
+ * Carrega variáveis do arquivo .env (formato KEY=VALUE) uma única vez.
+ */
+function env(string $key, string $default = ''): string
+{
+    static $vars = null;
+    if ($vars === null) {
+        $vars = [];
+        $envFile = __DIR__ . '/../.env';
+        if (is_file($envFile)) {
+            foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                $line = trim($line);
+                if ($line === '' || $line[0] === '#') {
+                    continue;
+                }
+                $parts = explode('=', $line, 2);
+                if (count($parts) === 2) {
+                    $vars[trim($parts[0])] = trim($parts[1]);
+                }
+            }
+        }
+    }
+    return $vars[$key] ?? $default;
+}
+
 function verify_csrf(): void
 {
     if (session_status() !== PHP_SESSION_ACTIVE) {
