@@ -4,8 +4,8 @@ import {
   LAYER_STYLES,
   MAP_CONFIG,
   VECTOR_PANES,
-} from "../config/mapConstants.js";
-import { buildPinDetailPopupElement } from "../components/popupTemplates.js";
+} from "../config/mapConstants.js?v=2";
+import { buildPinDetailPopupElement } from "../components/popupTemplates.js?v=2";
 import {
   buildMunicipioSpatialIndex,
   findMunicipioAtLatLng,
@@ -35,10 +35,19 @@ function createCulturalMarkerIcon(categoria) {
  * renderização em Canvas (`preferCanvas: true`) e gerenciamento de pins em tempo real.
  */
 export class CulturalMapController {
-  constructor({ container, onMunicipioClick, onZoomChanged, cartoApiKey }) {
+  constructor({
+    container,
+    onMunicipioClick,
+    onZoomChanged,
+    onDeletePin = null,
+    currentUserId = null,
+    cartoApiKey,
+  }) {
     this.container = container;
     this.onMunicipioClick = onMunicipioClick;
     this.onZoomChanged = onZoomChanged;
+    this.onDeletePin = onDeletePin;
+    this.currentUserId = currentUserId;
 
     this.regioesLayer = null;
     this.estadosLayer = null;
@@ -341,7 +350,7 @@ export class CulturalMapController {
       if (existing) {
         existing.pinData = pin;
         if (existing.isPopupOpen()) {
-          existing.setPopupContent(buildPinDetailPopupElement(pin));
+          existing.setPopupContent(this._buildPinPopup(pin));
         }
         continue;
       }
@@ -353,7 +362,7 @@ export class CulturalMapController {
       });
 
       marker.pinData = pin;
-      marker.bindPopup(() => buildPinDetailPopupElement(marker.pinData), {
+      marker.bindPopup(() => this._buildPinPopup(marker.pinData), {
         maxWidth: 340,
         minWidth: 270,
         className: "cultural-leaflet-popup",
@@ -362,6 +371,13 @@ export class CulturalMapController {
       marker.addTo(this.markersLayer);
       this.markersById.set(pin.id, marker);
     }
+  }
+
+  _buildPinPopup(pin) {
+    return buildPinDetailPopupElement(pin, {
+      currentUserId: this.currentUserId,
+      onDeletePin: this.onDeletePin,
+    });
   }
 
   flyToPin(pin) {

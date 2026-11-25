@@ -2,13 +2,15 @@ import {
     CATEGORY_BY_VALUE,
     CULTURAL_CATEGORIES,
     PIN_LIMITS,
-} from '../config/mapConstants.js';
+} from '../config/mapConstants.js?v=2';
 import {
     countCodepoints,
     createSafeElement,
     formatDatePtBr,
+    isSafeMediaUrl,
+    validateCulturalPinImage,
     validateCulturalPinPayload,
-} from '../utils/sanitize.js';
+} from '../utils/sanitize.js?v=2';
 
 /**
  * Constrói o formulário interativo de criação de Pin Cultural utilizando exclusivamente nós DOM
@@ -139,6 +141,58 @@ export function buildCreatePinPopupElement({
     descGroup.appendChild(descTextarea);
     form.appendChild(descGroup);
 
+    // Campo 4: Foto / Mídia (opcional)
+    const photoGroup = createSafeElement('div', { className: 'cultural-popup__field' });
+    const photoLabelRow = createSafeElement('div', { className: 'cultural-popup__label-row' });
+    const photoLabel = createSafeElement('label', {
+        text: 'Foto / Mídia (opcional)',
+        attrs: { for: 'pin-foto-input' },
+    });
+    const photoHint = createSafeElement('span', {
+        className: 'cultural-popup__counter',
+        text: 'JPG, PNG, WebP ou GIF (máx. 5 MB)',
+    });
+    photoLabelRow.appendChild(photoLabel);
+    photoLabelRow.appendChild(photoHint);
+
+    const photoInput = createSafeElement('input', {
+        className: 'cultural-popup__file-input',
+        attrs: {
+            id: 'pin-foto-input',
+            name: 'foto',
+            type: 'file',
+            accept: 'image/jpeg,image/png,image/webp,image/gif',
+        },
+    });
+
+    const previewBox = createSafeElement('div', {
+        className: 'cultural-popup__preview d-none',
+    });
+    const previewImg = createSafeElement('img', {
+        className: 'cultural-popup__preview-img',
+        attrs: { alt: 'Pré-visualização da foto selecionada' },
+    });
+    const previewMeta = createSafeElement('div', {
+        className: 'cultural-popup__preview-meta',
+    });
+    const previewName = createSafeElement('span', {
+        className: 'cultural-popup__preview-name',
+    });
+    const removePhotoBtn = createSafeElement('button', {
+        className: 'cultural-popup__remove-photo-btn',
+        text: 'Remover',
+        attrs: { type: 'button' },
+    });
+    previewMeta.appendChild(previewName);
+    previewMeta.appendChild(removePhotoBtn);
+    previewBox.appendChild(previewImg);
+    previewBox.appendChild(previewMeta);
+
+    photoGroup.appendChild(photoLabelRow);
+    photoGroup.appendChild(photoInput);
+    photoGroup.appendChild(previewBox);
+    form.appendChild(photoGroup);
+
     // Área de erro inline
     const errorBox = createSafeElement('div', {
         className: 'cultural-popup__alert cultural-popup__alert--error d-none',
@@ -156,6 +210,56 @@ export function buildCreatePinPopupElement({
     submitBtn.appendChild(btnIcon);
     submitBtn.appendChild(btnText);
     form.appendChild(submitBtn);
+
+    let selectedPhotoFile = null;
+    let previewObjectUrl = null;
+
+    const clearSelectedPhoto = () => {
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+            previewObjectUrl = null;
+        }
+        selectedPhotoFile = null;
+        photoInput.value = '';
+        previewImg.removeAttribute('src');
+        previewName.textContent = '';
+        previewBox.classList.add('d-none');
+    };
+
+    photoInput.addEventListener('change', () => {
+        errorBox.classList.add('d-none');
+        errorBox.textContent = '';
+
+        const file = photoInput.files?.[0] ?? null;
+        if (!file) {
+            clearSelectedPhoto();
+            return;
+        }
+
+        const checkImg = validateCulturalPinImage(file);
+        if (!checkImg.valid) {
+            clearSelectedPhoto();
+            errorBox.textContent = checkImg.error;
+            errorBox.classList.remove('d-none');
+            return;
+        }
+
+        if (previewObjectUrl) {
+            URL.revokeObjectURL(previewObjectUrl);
+        }
+        selectedPhotoFile = file;
+        previewObjectUrl = URL.createObjectURL(file);
+        previewImg.src = previewObjectUrl;
+        previewName.textContent = file.name;
+        previewBox.classList.remove('d-none');
+    });
+
+    removePhotoBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        clearSelectedPhoto();
+        errorBox.classList.add('d-none');
+        errorBox.textContent = '';
+    });
 
     const updateCounters = () => {
         const tLen = countCodepoints(titleInput.value.trim());
@@ -197,12 +301,25 @@ export function buildCreatePinPopupElement({
             return;
         }
 
+        if (selectedPhotoFile) {
+            const imgCheck = validateCulturalPinImage(selectedPhotoFile);
+            if (!imgCheck.valid) {
+                errorBox.textContent = imgCheck.error;
+                errorBox.classList.remove('d-none');
+                return;
+            }
+        }
+
         submitBtn.disabled = true;
         btnIcon.className = 'fas fa-spinner fa-spin me-1';
         btnText.textContent = 'Publicando...';
 
         try {
-            await onPublish(check.data);
+            await onPublish({
+                ...check.data,
+                foto: selectedPhotoFile,
+            });
+            clearSelectedPhoto();
         } catch (err) {
             errorBox.textContent = err?.message || 'Não foi possível salvar o pin.';
             errorBox.classList.remove('d-none');
@@ -219,7 +336,7 @@ export function buildCreatePinPopupElement({
 /**
  * Constrói o card de visualização de um Pin Cultural salvo usando estritamente `textContent`.
  */
-export function buildPinDetailPopupElement(pin) {
+export function buildPinDetailPopupElement(pin, { currentUserId = null, onDeletePin = null } = {}) {
     const container = createSafeElement('article', { className: 'cultural-popup cultural-popup--view' });
 
     const catMeta = CATEGORY_BY_VALUE[pin.categoria] ?? null;
@@ -250,6 +367,33 @@ export function buildPinDetailPopupElement(pin) {
     location.appendChild(document.createTextNode(placeLabel));
     container.appendChild(location);
 
+    if (isSafeMediaUrl(pin.imagemUrl)) {
+        const mediaWrap = createSafeElement('div', { className: 'cultural-popup__media' });
+        const mediaLink = createSafeElement('a', {
+            className: 'cultural-popup__media-link',
+            attrs: {
+                href: pin.imagemUrl,
+                target: '_blank',
+                rel: 'noopener noreferrer',
+                title: 'Abrir foto em tamanho original',
+            },
+        });
+        const mediaImg = createSafeElement('img', {
+            className: 'cultural-popup__media-img',
+            attrs: {
+                src: pin.imagemUrl,
+                alt: `Foto de ${pin.titulo}`,
+                loading: 'lazy',
+            },
+        });
+        mediaImg.addEventListener('error', () => {
+            mediaWrap.classList.add('d-none');
+        });
+        mediaLink.appendChild(mediaImg);
+        mediaWrap.appendChild(mediaLink);
+        container.appendChild(mediaWrap);
+    }
+
     const body = createSafeElement('p', {
         className: 'cultural-popup__desc',
         text: pin.descricao,
@@ -262,6 +406,103 @@ export function buildPinDetailPopupElement(pin) {
         document.createTextNode(`Publicado em ${formatDatePtBr(pin.criadoEm)}`)
     );
     container.appendChild(footer);
+
+    const isOwner =
+        Number.isInteger(currentUserId) &&
+        currentUserId > 0 &&
+        Number.isInteger(pin.usuarioId) &&
+        pin.usuarioId === currentUserId &&
+        typeof onDeletePin === 'function';
+
+    if (isOwner) {
+        const actions = createSafeElement('div', { className: 'cultural-popup__actions' });
+
+        const deleteBtn = createSafeElement('button', {
+            className: 'cultural-popup__delete-btn',
+            attrs: { type: 'button' },
+        });
+        deleteBtn.appendChild(createSafeElement('i', { className: 'fas fa-trash-alt me-1' }));
+        deleteBtn.appendChild(document.createTextNode('Excluir pin'));
+
+        const confirmBox = createSafeElement('div', {
+            className: 'cultural-popup__confirm-box d-none',
+        });
+        const confirmLabel = createSafeElement('span', {
+            className: 'cultural-popup__confirm-label',
+            text: 'Excluir este pin?',
+        });
+        const confirmBtns = createSafeElement('div', {
+            className: 'cultural-popup__confirm-buttons',
+        });
+
+        const confirmBtn = createSafeElement('button', {
+            className: 'cultural-popup__confirm-btn',
+            attrs: { type: 'button' },
+        });
+        const confirmIcon = createSafeElement('i', { className: 'fas fa-check me-1' });
+        const confirmText = createSafeElement('span', { text: 'Confirmar' });
+        confirmBtn.appendChild(confirmIcon);
+        confirmBtn.appendChild(confirmText);
+
+        const cancelBtn = createSafeElement('button', {
+            className: 'cultural-popup__cancel-btn',
+            text: 'Cancelar',
+            attrs: { type: 'button' },
+        });
+
+        confirmBtns.appendChild(confirmBtn);
+        confirmBtns.appendChild(cancelBtn);
+        confirmBox.appendChild(confirmLabel);
+        confirmBox.appendChild(confirmBtns);
+
+        const errorBox = createSafeElement('div', {
+            className: 'cultural-popup__alert cultural-popup__alert--error d-none',
+            attrs: { role: 'alert' },
+        });
+
+        deleteBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            errorBox.classList.add('d-none');
+            errorBox.textContent = '';
+            deleteBtn.classList.add('d-none');
+            confirmBox.classList.remove('d-none');
+        });
+
+        cancelBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            errorBox.classList.add('d-none');
+            errorBox.textContent = '';
+            confirmBox.classList.add('d-none');
+            deleteBtn.classList.remove('d-none');
+        });
+
+        confirmBtn.addEventListener('click', async (event) => {
+            event.stopPropagation();
+            errorBox.classList.add('d-none');
+            errorBox.textContent = '';
+
+            confirmBtn.disabled = true;
+            cancelBtn.disabled = true;
+            confirmIcon.className = 'fas fa-spinner fa-spin me-1';
+            confirmText.textContent = 'Excluindo...';
+
+            try {
+                await onDeletePin(pin);
+            } catch (err) {
+                errorBox.textContent = err?.message || 'Não foi possível excluir o pin.';
+                errorBox.classList.remove('d-none');
+                confirmBtn.disabled = false;
+                cancelBtn.disabled = false;
+                confirmIcon.className = 'fas fa-check me-1';
+                confirmText.textContent = 'Confirmar';
+            }
+        });
+
+        actions.appendChild(deleteBtn);
+        actions.appendChild(confirmBox);
+        actions.appendChild(errorBox);
+        container.appendChild(actions);
+    }
 
     return container;
 }

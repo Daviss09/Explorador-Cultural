@@ -2,7 +2,7 @@ import {
     CULTURAL_CATEGORIES,
     MAP_CONFIG,
     PIN_LIMITS,
-} from '../config/mapConstants.js';
+} from '../config/mapConstants.js?v=2';
 
 const ALLOWED_CATEGORY_SET = new Set([
     '',
@@ -176,4 +176,54 @@ export function createSafeElement(tagName, options = {}) {
         }
     }
     return element;
+}
+
+/**
+ * Valida uma foto opcional selecionada pelo usuário antes do envio ao servidor.
+ */
+export function validateCulturalPinImage(file) {
+    if (!file) {
+        return { valid: true, error: null };
+    }
+
+    if (typeof File !== 'undefined' && !(file instanceof File)) {
+        return { valid: false, error: 'Arquivo de imagem inválido.' };
+    }
+
+    const mime = String(file.type || '').toLowerCase();
+    const ext = String(file.name || '').split('.').pop()?.toLowerCase() ?? '';
+    const allowedExt = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif']);
+    const mimeOk = PIN_LIMITS.ALLOWED_IMAGE_TYPES.includes(mime);
+    const extOk = mime === '' && allowedExt.has(ext);
+
+    if (!mimeOk && !extOk) {
+        return {
+            valid: false,
+            error: 'Formato de imagem inválido. Selecione JPG, PNG, WebP ou GIF.',
+        };
+    }
+
+    if (file.size <= 0 || file.size > PIN_LIMITS.MAX_IMAGE_BYTES) {
+        return {
+            valid: false,
+            error: 'A foto deve ter no máximo 5 MB.',
+        };
+    }
+
+    return { valid: true, error: null };
+}
+
+/**
+ * Garante que uma URL de mídia seja relativa segura ou HTTP(S).
+ */
+export function isSafeMediaUrl(value) {
+    if (typeof value !== 'string') {
+        return false;
+    }
+    const trimmed = value.trim();
+    return (
+        trimmed.startsWith('/') ||
+        trimmed.startsWith('https://') ||
+        trimmed.startsWith('http://')
+    );
 }

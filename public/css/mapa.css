@@ -414,6 +414,8 @@
 
 .cultural-popup {
     padding: 16px 18px;
+    max-height: min(74vh, 560px);
+    overflow-y: auto;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     color: #0f172a;
 }
@@ -487,7 +489,8 @@
 
 .cultural-popup__input,
 .cultural-popup__select,
-.cultural-popup__textarea {
+.cultural-popup__textarea,
+.cultural-popup__file-input {
     width: 100%;
     border: 1px solid #cbd5e1;
     border-radius: 8px;
@@ -497,6 +500,63 @@
     background: #ffffff;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cultural-popup__file-input {
+    padding: 5px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.cultural-popup__preview {
+    margin-top: 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cultural-popup__preview-img {
+    width: 100%;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+}
+
+.cultural-popup__preview-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.cultural-popup__preview-name {
+    font-size: 11px;
+    color: #475569;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cultural-popup__remove-photo-btn {
+    flex-shrink: 0;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cultural-popup__remove-photo-btn:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
 }
 
 .cultural-popup__textarea {
@@ -590,6 +650,25 @@
     margin-bottom: 10px;
 }
 
+.cultural-popup__media {
+    margin: 0 0 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.cultural-popup__media-link {
+    display: block;
+}
+
+.cultural-popup__media-img {
+    width: 100%;
+    max-height: 170px;
+    object-fit: cover;
+    display: block;
+}
+
 .cultural-popup__desc {
     margin: 0 0 12px;
     font-size: 13px;
@@ -606,6 +685,97 @@
     border-top: 1px solid #e2e8f0;
     font-size: 11px;
     color: #64748b;
+}
+
+.cultural-popup__actions {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cultural-popup__delete-btn {
+    width: 100%;
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.cultural-popup__delete-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.cultural-popup__confirm-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+}
+
+.cultural-popup__confirm-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #991b1b;
+}
+
+.cultural-popup__confirm-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.cultural-popup__confirm-btn,
+.cultural-popup__cancel-btn {
+    flex: 1 1 0;
+    border-radius: 7px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.cultural-popup__confirm-btn {
+    border: 0;
+    background: #dc2626;
+    color: #ffffff;
+}
+
+.cultural-popup__confirm-btn:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.cultural-popup__cancel-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+}
+
+.cultural-popup__cancel-btn:hover:not(:disabled) {
+    background: #f8fafc;
+}
+
+.cultural-popup__confirm-btn:disabled,
+.cultural-popup__cancel-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
 }
 
 /* Responsividade Mobile */

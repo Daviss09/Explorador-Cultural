@@ -1,4 +1,7 @@
-import { validateCulturalPinPayload } from '../utils/sanitize.js';
+import {
+    validateCulturalPinImage,
+    validateCulturalPinPayload,
+} from '../utils/sanitize.js?v=2';
 
 const SYNC_INTERVAL_MS = 4000;
 
@@ -41,6 +44,11 @@ export class PinApiService {
             if (!this.pinsById.has(id)) {
                 changed = true;
             }
+            const rawOwnerId = raw?.usuarioId;
+            const usuarioId =
+                rawOwnerId !== null && rawOwnerId !== undefined && Number.isFinite(Number(rawOwnerId))
+                    ? Number(rawOwnerId)
+                    : null;
             this.pinsById.set(id, {
                 id: String(id),
                 numericId: id,
@@ -51,10 +59,34 @@ export class PinApiService {
                 estado: String(raw?.estado ?? ''),
                 latitude: Number(raw?.latitude),
                 longitude: Number(raw?.longitude),
+                imagemUrl: raw?.imagemUrl ? String(raw.imagemUrl) : null,
+                usuarioId,
                 criadoEm: raw?.criadoEm ?? null,
             });
         }
         return changed;
+    }
+
+    _getCsrfToken() {
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        return csrfMeta?.getAttribute('content') || this.csrfToken;
+    }
+
+    async _parseJsonResponse(response, fallbackMessage) {
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch {
+            payload = null;
+        }
+
+        if (!response.ok || !payload?.ok) {
+            throw new Error(
+                payload?.error || `${fallbackMessage} (HTTP ${response.status}).`
+            );
+        }
+
+        return payload;
     }
 
     async _fetchPins(afterId = 0) {
@@ -67,18 +99,10 @@ export class PinApiService {
             credentials: 'same-origin',
         });
 
-        let payload = null;
-        try {
-            payload = await response.json();
-        } catch {
-            payload = null;
-        }
-
-        if (!response.ok || !payload?.ok) {
-            throw new Error(
-                payload?.error || `Falha ao carregar pins do servidor (HTTP ${response.status}).`
-            );
-        }
+        const payload = await this._parseJsonResponse(
+            response,
+            'Falha ao carregar pins do servidor'
+        );
 
         return Array.isArray(payload.pins) ? payload.pins : [];
     }
@@ -151,31 +175,50 @@ export class PinApiService {
             throw new Error(validation.errors[0]);
         }
 
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        const csrfToken = csrfMeta?.getAttribute('content') || this.csrfToken;
-
-        const response = await fetch(this.pinsEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-Token': csrfToken,
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify(validation.data),
-        });
-
-        let payload = null;
-        try {
-            payload = await response.json();
-        } catch {
-            payload = null;
+        const photoFile = rawInput?.foto instanceof File ? rawInput.foto : null;
+        if (photoFile) {
+            const imageValidation = validateCulturalPinImage(photoFile);
+            if (!imageValidation.valid) {
+                throw new Error(imageValidation.error);
+            }
         }
 
-        if (!response.ok || !payload?.ok || !payload?.pin) {
-            throw new Error(
-                payload?.error || `Erro ao salvar pin no banco de dados (HTTP ${response.status}).`
-            );
+        let response;
+        if (photoFile) {
+            const formData = new FormData();
+            for (const [key, value] of Object.entries(validation.data)) {
+                formData.append(key, String(value));
+            }
+            formData.append('foto', photoFile);
+
+            response = await fetch(this.pinsEndpoint, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-Token': this._getCsrfToken(),
+                },
+                credentials: 'same-origin',
+                body: formData,
+            });
+        } else {
+            response = await fetch(this.pinsEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-Token': this._getCsrfToken(),
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(validation.data),
+            });
+        }
+
+        const payload = await this._parseJsonResponse(
+            response,
+            'Erro ao salvar pin no banco de dados'
+        );
+        if (!payload?.pin) {
+            throw new Error('Erro ao salvar pin no banco de dados.');
         }
 
         this._mergePins([payload.pin]);
@@ -184,5 +227,41 @@ export class PinApiService {
         }
 
         return payload.pin;
+    }
+
+    /**
+     * Solicita a exclusão de um pin criado pelo usuário autenticado e remove do mapa.
+     */
+    async deletePin(pinId) {
+        const numericId = Number(pinId);
+        if (!Number.isInteger(numericId) || numericId <= 0) {
+            throw new Error('Identificador do pin inválido.');
+        }
+
+        const separator = this.pinsEndpoint.includes('?') ? '&' : '?';
+        const url = `${this.pinsEndpoint}${separator}id=${encodeURIComponent(String(numericId))}`;
+
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-Token': this._getCsrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ id: numericId }),
+        });
+
+        const payload = await this._parseJsonResponse(
+            response,
+            'Erro ao excluir pin no banco de dados'
+        );
+
+        this.pinsById.delete(numericId);
+        if (typeof this.onUpdateCallback === 'function') {
+            this.onUpdateCallback(this._getOrderedPins());
+        }
+
+        return payload;
     }
 }

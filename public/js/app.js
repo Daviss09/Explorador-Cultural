@@ -2,12 +2,12 @@ import {
   BRAZIL_REGIONS,
   CULTURAL_CATEGORIES,
   MAP_CONFIG,
-} from "./config/mapConstants.js";
-import { buildCreatePinPopupElement } from "./components/popupTemplates.js";
-import { CulturalMapController } from "./map/culturalMap.js";
-import { PinApiService } from "./services/pinApiService.js";
-import { loadBrazilGeographies } from "./services/ibgeService.js";
-import { createSafeElement } from "./utils/sanitize.js";
+} from "./config/mapConstants.js?v=2";
+import { buildCreatePinPopupElement } from "./components/popupTemplates.js?v=2";
+import { CulturalMapController } from "./map/culturalMap.js?v=2";
+import { PinApiService } from "./services/pinApiService.js?v=2";
+import { loadBrazilGeographies } from "./services/ibgeService.js?v=2";
+import { createSafeElement } from "./utils/sanitize.js?v=2";
 
 function readAppConfigFromDom() {
   const configScript = document.getElementById("app-config-data");
@@ -101,6 +101,12 @@ async function bootstrap() {
   }
 
   const appConfig = readAppConfigFromDom();
+  const currentUserId =
+    typeof appConfig.currentUserId === "number" &&
+    Number.isInteger(appConfig.currentUserId) &&
+    appConfig.currentUserId > 0
+      ? appConfig.currentUserId
+      : null;
   const pinService = new PinApiService(appConfig);
   let currentPins = [];
 
@@ -119,7 +125,17 @@ async function bootstrap() {
   const mapController = new CulturalMapController({
     container: mapContainer,
     cartoApiKey: appConfig.cartoApiKey || '',
+    currentUserId,
     onZoomChanged: updateZoomIndicators,
+    onDeletePin: async (pin) => {
+      await pinService.deletePin(pin.id);
+      mapController.closePopup();
+      showToast(
+        toastEl,
+        `Pin "${pin.titulo}" excluído com sucesso.`,
+        "success",
+      );
+    },
     onMunicipioClick: ({ latlng, cidade, estado, regiao }) => {
       const popupContent = buildCreatePinPopupElement({
         cidade,
@@ -337,6 +353,13 @@ async function bootstrap() {
       const visibleCount = mapController.setPins(pins);
       if (pinCounterEl) {
         pinCounterEl.textContent = String(visibleCount);
+      }
+      if (
+        searchResultsMenu &&
+        !searchResultsMenu.classList.contains("d-none") &&
+        navbarSearchInput
+      ) {
+        renderSearchDropdown(navbarSearchInput.value);
       }
     },
     (err) => {

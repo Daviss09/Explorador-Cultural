@@ -11,6 +11,7 @@ class Pin
     public const MAX_TITULO = 80;
     public const MAX_DESCRICAO = 1000;
     public const MAX_CIDADE = 120;
+    public const MAX_IMAGE_BYTES = 5242880; // 5 MB
 
     public const ALLOWED_CATEGORIES = [
         '',
@@ -51,6 +52,7 @@ class Pin
                 `estado` CHAR(2) NOT NULL,
                 `latitude` DECIMAL(9,6) NOT NULL,
                 `longitude` DECIMAL(9,6) NOT NULL,
+                `imagem_url` VARCHAR(255) NULL DEFAULT NULL,
                 `usuario_id` INT(11) NULL DEFAULT NULL,
                 `criadoEm` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`id`),
@@ -58,6 +60,14 @@ class Pin
                 KEY `idx_pins_estado_cidade` (`estado`, `cidade`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+
+        $columnCheck = $pdo->query("SHOW COLUMNS FROM `pins_culturais` LIKE 'imagem_url'");
+        if ($columnCheck !== false && $columnCheck->fetch() === false) {
+            $pdo->exec(
+                'ALTER TABLE `pins_culturais`
+                 ADD COLUMN `imagem_url` VARCHAR(255) NULL DEFAULT NULL AFTER `longitude`'
+            );
+        }
 
         self::$tableEnsured = true;
     }
@@ -74,7 +84,7 @@ class Pin
 
         if ($afterId > 0) {
             $stmt = $pdo->prepare(
-                'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, criadoEm
+                'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, imagem_url, usuario_id, criadoEm
                  FROM pins_culturais
                  WHERE id > ?
                  ORDER BY id ASC
@@ -83,7 +93,7 @@ class Pin
             $stmt->execute([$afterId]);
         } else {
             $stmt = $pdo->query(
-                'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, criadoEm
+                'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, imagem_url, usuario_id, criadoEm
                  FROM pins_culturais
                  ORDER BY criadoEm DESC, id DESC
                  LIMIT 2000'
@@ -171,14 +181,14 @@ class Pin
      * @param array<string, mixed> $validatedData
      * @return array<string, mixed>
      */
-    public static function create(array $validatedData, ?int $usuarioId = null): array
+    public static function create(array $validatedData, ?int $usuarioId = null, ?string $imagemUrl = null): array
     {
         self::ensureTable();
         $pdo = Database::connect();
 
         $stmt = $pdo->prepare(
-            'INSERT INTO pins_culturais (titulo, descricao, categoria, cidade, estado, latitude, longitude, usuario_id)
-             VALUES (:titulo, :descricao, :categoria, :cidade, :estado, :latitude, :longitude, :usuario_id)'
+            'INSERT INTO pins_culturais (titulo, descricao, categoria, cidade, estado, latitude, longitude, imagem_url, usuario_id)
+             VALUES (:titulo, :descricao, :categoria, :cidade, :estado, :latitude, :longitude, :imagem_url, :usuario_id)'
         );
 
         $stmt->execute([
@@ -189,12 +199,13 @@ class Pin
             ':estado' => $validatedData['estado'],
             ':latitude' => $validatedData['latitude'],
             ':longitude' => $validatedData['longitude'],
+            ':imagem_url' => $imagemUrl,
             ':usuario_id' => $usuarioId,
         ]);
 
         $newId = (int) $pdo->lastInsertId();
         $select = $pdo->prepare(
-            'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, criadoEm
+            'SELECT id, titulo, descricao, categoria, cidade, estado, latitude, longitude, imagem_url, usuario_id, criadoEm
              FROM pins_culturais
              WHERE id = ?'
         );
@@ -205,11 +216,78 @@ class Pin
             return [
                 'id' => $newId,
                 ...$validatedData,
+                'imagemUrl' => $imagemUrl !== null ? url($imagemUrl) : null,
+                'usuarioId' => $usuarioId,
                 'criadoEm' => date('c'),
             ];
         }
 
         return self::formatRow($row);
+    }
+
+    /**
+     * Exclui um pin cultural apenas se pertencer ao usuário informado.
+     *
+     * @return 'deleted'|'not_found'|'forbidden'
+     */
+    public static function deleteOwnedByUser(int $pinId, int $usuarioId): string
+    {
+        self::ensureTable();
+        $pdo = Database::connect();
+
+        $stmt = $pdo->prepare(
+            'SELECT usuario_id, imagem_url
+             FROM pins_culturais
+             WHERE id = ?
+             LIMIT 1'
+        );
+        $stmt->execute([$pinId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return 'not_found';
+        }
+
+        $ownerId = isset($row['usuario_id']) ? (int) $row['usuario_id'] : null;
+        if ($ownerId === null || $ownerId !== $usuarioId) {
+            return 'forbidden';
+        }
+
+        $deleteStmt = $pdo->prepare(
+            'DELETE FROM pins_culturais
+             WHERE id = ? AND usuario_id = ?
+             LIMIT 1'
+        );
+        $deleteStmt->execute([$pinId, $usuarioId]);
+
+        if ($deleteStmt->rowCount() <= 0) {
+            return 'not_found';
+        }
+
+        if (!empty($row['imagem_url'])) {
+            self::deleteLocalImage((string) $row['imagem_url']);
+        }
+
+        return 'deleted';
+    }
+
+    public static function deleteLocalImage(string $relativePath): void
+    {
+        $normalized = ltrim(str_replace('\\', '/', $relativePath), '/');
+        if (!str_starts_with($normalized, 'uploads/pins/')) {
+            return;
+        }
+
+        $uploadsDir = realpath(__DIR__ . '/../../public/uploads/pins');
+        $targetFile = realpath(__DIR__ . '/../../public/' . $normalized);
+        if (
+            $uploadsDir !== false &&
+            $targetFile !== false &&
+            str_starts_with($targetFile, $uploadsDir . DIRECTORY_SEPARATOR) &&
+            is_file($targetFile)
+        ) {
+            @unlink($targetFile);
+        }
     }
 
     /**
@@ -220,6 +298,7 @@ class Pin
     {
         $rawDate = (string) ($row['criadoEm'] ?? '');
         $timestamp = $rawDate !== '' ? strtotime($rawDate) : false;
+        $rawImagePath = isset($row['imagem_url']) ? trim((string) $row['imagem_url']) : '';
 
         return [
             'id' => (int) $row['id'],
@@ -230,6 +309,8 @@ class Pin
             'estado' => (string) $row['estado'],
             'latitude' => (float) $row['latitude'],
             'longitude' => (float) $row['longitude'],
+            'imagemUrl' => $rawImagePath !== '' ? url($rawImagePath) : null,
+            'usuarioId' => isset($row['usuario_id']) ? (int) $row['usuario_id'] : null,
             'criadoEm' => $timestamp !== false ? date('c', $timestamp) : $rawDate,
         ];
     }

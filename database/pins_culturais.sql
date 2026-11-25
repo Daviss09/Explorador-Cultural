@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS `pins_culturais` (
   `estado` CHAR(2) NOT NULL,
   `latitude` DECIMAL(9,6) NOT NULL,
   `longitude` DECIMAL(9,6) NOT NULL,
+  `imagem_url` VARCHAR(255) NULL DEFAULT NULL,
   `usuario_id` INT(11) NULL DEFAULT NULL,
   `criadoEm` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

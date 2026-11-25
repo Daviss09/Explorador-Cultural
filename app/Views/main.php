@@ -11,6 +11,7 @@ $appClientConfig = [
     'pinsEndpoint' => url('pins'),
     'csrfToken' => $csrfToken,
     'cartoApiKey' => env('CARTO_API_KEY', ''),
+    'currentUserId' => isset($_SESSION['user']['id']) ? (int) $_SESSION['user']['id'] : null,
 ];
 ?>
 <!doctype html>
@@ -28,7 +29,7 @@ $appClientConfig = [
     <!-- Leaflet 1.9.4 CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Estilos do Mapa Cultural -->
-    <link rel="stylesheet" href="<?= url('css/mapa.css') ?>" />
+    <link rel="stylesheet" href="<?= url('css/mapa.css') ?>?v=<?= (int) @filemtime(__DIR__ . '/../../public/css/mapa.css') ?>" />
 </head>
 
 <body class="cultural-app-body">
@@ -159,7 +160,7 @@ $appClientConfig = [
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
     <!-- Aplicação modular do Mapa Cultural -->
-    <script type="module" src="<?= url('js/app.js') ?>"></script>
+    <script type="module" src="<?= url('js/app.js') ?>?v=<?= (int) @filemtime(__DIR__ . '/../../public/js/app.js') ?>"></script>
 </body>
 
 </html>

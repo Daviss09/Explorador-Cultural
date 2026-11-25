@@ -1,4 +1,4 @@
-import { IBGE_ENDPOINTS } from '../config/mapConstants.js';
+import { IBGE_ENDPOINTS } from '../config/mapConstants.js?v=2';
 
 /**
  * Converte um payload TopoJSON retornado pela API v3 de Malhas do IBGE em GeoJSON FeatureCollection.

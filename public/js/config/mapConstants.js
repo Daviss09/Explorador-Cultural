@@ -111,6 +111,13 @@ export const PIN_LIMITS = Object.freeze({
   MAX_DESCRICAO: 1000,
   MAX_CATEGORIA: 60,
   MAX_CIDADE: 120,
+  MAX_IMAGE_BYTES: 5 * 1024 * 1024,
+  ALLOWED_IMAGE_TYPES: Object.freeze([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+  ]),
 });
 
 export const CULTURAL_CATEGORIES = Object.freeze([

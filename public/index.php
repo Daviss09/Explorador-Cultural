@@ -37,12 +37,18 @@ $routeAliases = [
     'pins' => ['PinController', 'handle'],
     'pin/index' => ['PinController', 'index'],
     'pin/store' => ['PinController', 'store'],
+    'pin/delete' => ['PinController', 'destroy'],
+    'pin/destroy' => ['PinController', 'destroy'],
 ];
 
 if (isset($routeAliases[$rawRoute])) {
     [$ctrlName, $method] = $routeAliases[$rawRoute];
     $controller = 'App\\Controllers\\' . $ctrlName;
     $params = [];
+} elseif (preg_match('#^pins/(\d+)$#', $rawRoute, $matches)) {
+    $controller = 'App\\Controllers\\PinController';
+    $method = 'handle';
+    $params = [(int) $matches[1]];
 } else {
     $url = explode('/', $rawRoute);
     $url[0] = preg_replace('/[^a-zA-Z0-9_]/', '', $url[0] ?? 'user');
