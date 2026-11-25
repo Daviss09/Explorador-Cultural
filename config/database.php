@@ -3,6 +3,6 @@ return [
     'host' => 'localhost',
     'name' => 'exploradorcultural',
     'user' => 'root',
-    'pass' => '',
+    'pass' => 'davi2009',
     'charset' => 'utf8mb4',
 ];

@@ -137,6 +137,11 @@ async function bootstrap() {
       );
     },
     onMunicipioClick: ({ latlng, cidade, estado, regiao }) => {
+      if (currentUserId === null) {
+        showToast(toastEl, "Faça login ou cadastre-se para criar pins culturais.", "info");
+        return;
+      }
+
       const popupContent = buildCreatePinPopupElement({
         cidade,
         estado,

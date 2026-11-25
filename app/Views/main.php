@@ -85,7 +85,9 @@ $appClientConfig = [
         <!-- Instrução visual discreta -->
         <div class="map-instruction-pill" role="note">
             <i class="fas fa-hand-pointer text-primary" aria-hidden="true"></i>
-            <span>Clique em qualquer cidade para adicionar uma expressão cultural</span>
+            <span><?= !empty($_SESSION['user']['id'])
+                ? 'Clique em qualquer cidade para adicionar uma expressão cultural'
+                : 'Faça login para adicionar uma expressão cultural' ?></span>
         </div>
 
         <!-- Painel de controle / filtros rápidos -->

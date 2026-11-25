@@ -59,6 +59,13 @@ class PinController
             return;
         }
         $usuarioId = $auth['usuarioId'];
+        if ($usuarioId === null || $usuarioId <= 0) {
+            $this->sendJson([
+                'ok' => false,
+                'error' => 'Você precisa estar logado para criar um pin.',
+            ], 401);
+            return;
+        }
 
         $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
         $isJsonRequest = str_contains($contentType, 'application/json');
